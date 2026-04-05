@@ -34,6 +34,13 @@ pub async fn apply(db: &SurrealClient, dimension: usize) -> crate::error::Result
         DEFINE INDEX IF NOT EXISTS idx_chunk_document ON chunk FIELDS document;
         DEFINE INDEX IF NOT EXISTS idx_chunk_doc_position ON chunk FIELDS document, position UNIQUE;
         DEFINE INDEX IF NOT EXISTS idx_chunk_vector ON chunk FIELDS vector HNSW DIMENSION {dimension} DIST COSINE TYPE F32;
+
+        DEFINE FIELD IF NOT EXISTS custom_attributes ON document TYPE option<object> FLEXIBLE;
+
+        DEFINE TABLE IF NOT EXISTS child_of SCHEMAFULL TYPE RELATION FROM document TO document;
+        DEFINE FIELD IF NOT EXISTS created_at ON child_of TYPE datetime DEFAULT time::now();
+        DEFINE INDEX IF NOT EXISTS idx_child_of_in ON child_of FIELDS in UNIQUE;
+        DEFINE INDEX IF NOT EXISTS idx_child_of_out ON child_of FIELDS out;
     "#);
 
     db.query(schema).await?;

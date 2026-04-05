@@ -24,7 +24,7 @@ pub async fn run(host: String, port: u16, db_path: PathBuf) -> crate::error::Res
 
     let pipeline = Arc::new(SearchPipeline::new(
         db_client.clone(),
-        embedding_service,
+        embedding_service.clone(),
         search_config,
     ).await?);
 
@@ -35,7 +35,13 @@ pub async fn run(host: String, port: u16, db_path: PathBuf) -> crate::error::Res
             let pipeline = pipeline.clone();
             let db_client = db_client.clone();
             let embedding_config = embedding_config.clone();
-            move || Ok(RagServer::new(pipeline.clone(), db_client.clone(), embedding_config.clone()))
+            let embedding_service = embedding_service.clone();
+            move || Ok(RagServer::new(
+                pipeline.clone(),
+                db_client.clone(),
+                embedding_config.clone(),
+                embedding_service.clone(),
+            ))
         },
         Arc::new(LocalSessionManager::default()),
         StreamableHttpServerConfig {

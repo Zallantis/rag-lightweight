@@ -25,6 +25,9 @@ pub enum AppError {
 
     #[error("Search error: {0}")]
     Search(String),
+
+    #[error("Hierarchy error: {0}")]
+    Hierarchy(String),
 }
 
 pub type Result<T> = std::result::Result<T, AppError>;

@@ -3,6 +3,8 @@ pub mod documents;
 pub mod chunks;
 pub mod search;
 pub mod stats;
+pub mod hierarchy;
+pub mod filter;
 
 use std::path::Path;
 use surrealdb::Surreal;

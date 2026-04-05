@@ -26,6 +26,7 @@ pub struct Document {
     pub content: String,
     pub content_hash: Option<String>,
     pub metadata: Option<serde_json::Value>,
+    pub custom_attributes: Option<serde_json::Value>,
 }
 
 pub async fn upsert_document(
@@ -86,7 +87,7 @@ pub async fn upsert_document(
 
 pub async fn get_document(db: &SurrealClient, id: &str) -> crate::error::Result<Option<Document>> {
     let doc: Option<Document> = db
-        .query("SELECT id, source, source_id, title, content, content_hash, metadata FROM $id")
+        .query("SELECT id, source, source_id, title, content, content_hash, metadata, custom_attributes FROM $id")
         .bind(("id", RecordId::new("document", id)))
         .await?
         .take(0)?;
@@ -107,21 +108,37 @@ pub async fn list_documents(
     source: Option<&str>,
     limit: usize,
     offset: usize,
+    filter: Option<&crate::db::filter::FilterResult>,
 ) -> crate::error::Result<Vec<DocumentSummary>> {
-    let docs: Vec<DocumentSummary> = if let Some(source) = source {
-        db.query("SELECT id, source, source_id, title, created_at FROM document WHERE source = $source ORDER BY created_at DESC LIMIT $limit START $offset")
-            .bind(("source", source.to_string()))
-            .bind(("limit", limit))
-            .bind(("offset", offset))
-            .await?
-            .take(0)?
+    let mut where_parts = Vec::new();
+    if source.is_some() {
+        where_parts.push("source = $source".to_string());
+    }
+    if let Some(f) = filter {
+        where_parts.push(f.where_clause.clone());
+    }
+
+    let where_clause = if where_parts.is_empty() {
+        String::new()
     } else {
-        db.query("SELECT id, source, source_id, title, created_at FROM document ORDER BY created_at DESC LIMIT $limit START $offset")
-            .bind(("limit", limit))
-            .bind(("offset", offset))
-            .await?
-            .take(0)?
+        format!(" WHERE {}", where_parts.join(" AND "))
     };
+
+    let sql = format!(
+        "SELECT id, source, source_id, title, created_at FROM document{where_clause} ORDER BY created_at DESC LIMIT $limit START $offset"
+    );
+
+    let mut q = db.query(sql).bind(("limit", limit)).bind(("offset", offset));
+    if let Some(source) = source {
+        q = q.bind(("source", source.to_string()));
+    }
+    if let Some(f) = filter {
+        for (name, value) in &f.bindings {
+            q = q.bind((name.clone(), value.clone()));
+        }
+    }
+
+    let docs: Vec<DocumentSummary> = q.await?.take(0)?;
     Ok(docs)
 }
 
@@ -136,6 +153,39 @@ pub async fn count_documents(db: &SurrealClient) -> crate::error::Result<usize> 
 #[derive(Debug, SurrealValue)]
 struct CountResult {
     count: usize,
+}
+
+pub async fn update_document_fields(
+    db: &SurrealClient,
+    doc_id: &RecordId,
+    title: Option<&str>,
+    custom_attributes: Option<&serde_json::Value>,
+) -> crate::error::Result<()> {
+    let mut parts = vec!["updated_at = time::now()".to_string()];
+    let mut idx = 0usize;
+
+    if title.is_some() {
+        parts.push(format!("title = $p{idx}"));
+        idx += 1;
+    }
+    if custom_attributes.is_some() {
+        parts.push(format!("custom_attributes = $p{idx}"));
+    }
+
+    let sql = format!("UPDATE $id SET {}", parts.join(", "));
+    let mut q = db.query(sql).bind(("id", doc_id.clone()));
+
+    idx = 0;
+    if let Some(t) = title {
+        q = q.bind((format!("p{idx}"), t.to_string()));
+        idx += 1;
+    }
+    if let Some(ca) = custom_attributes {
+        q = q.bind((format!("p{idx}"), ca.clone()));
+    }
+
+    q.await?;
+    Ok(())
 }
 
 pub async fn documents_by_source(db: &SurrealClient) -> crate::error::Result<Vec<SourceCount>> {
@@ -223,7 +273,7 @@ mod tests {
         let db = crate::db::init(dir.path(), 384).await.unwrap();
         upsert_document(&db, "source_a", "f1", "T1", "C1", "h1").await.unwrap();
         upsert_document(&db, "source_b", "f2", "T2", "C2", "h2").await.unwrap();
-        let docs = list_documents(&db, None, 10, 0).await.unwrap();
+        let docs = list_documents(&db, None, 10, 0, None).await.unwrap();
         assert_eq!(docs.len(), 2);
     }
 
@@ -233,7 +283,7 @@ mod tests {
         let db = crate::db::init(dir.path(), 384).await.unwrap();
         upsert_document(&db, "source_a", "f1", "T1", "C1", "h1").await.unwrap();
         upsert_document(&db, "source_b", "f2", "T2", "C2", "h2").await.unwrap();
-        let docs = list_documents(&db, Some("source_a"), 10, 0).await.unwrap();
+        let docs = list_documents(&db, Some("source_a"), 10, 0, None).await.unwrap();
         assert_eq!(docs.len(), 1);
         assert_eq!(docs[0].source, "source_a");
     }

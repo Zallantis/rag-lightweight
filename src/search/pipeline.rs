@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use serde::Serialize;
+use tokio::sync::RwLock;
 use crate::config::SearchConfig;
 use crate::db::SurrealClient;
 use crate::db::search as db_search;
@@ -20,7 +21,7 @@ pub struct SearchPipeline {
     db: SurrealClient,
     embedding_service: Arc<dyn EmbeddingService>,
     search_config: SearchConfig,
-    vector_index: VectorIndex,
+    vector_index: RwLock<VectorIndex>,
 }
 
 impl SearchPipeline {
@@ -34,7 +35,7 @@ impl SearchPipeline {
             db,
             embedding_service,
             search_config,
-            vector_index,
+            vector_index: RwLock::new(vector_index),
         })
     }
 
@@ -54,7 +55,9 @@ impl SearchPipeline {
             .next()
             .ok_or_else(|| crate::error::AppError::Search("No embedding returned".into()))?;
 
-        let vec_hits = self.vector_index.search(&query_vector, retrieve_limit, source_filter);
+        let index = self.vector_index.read().await;
+        let vec_hits = index.search(&query_vector, retrieve_limit, source_filter);
+        drop(index);
 
         let vec_results: Vec<db_search::VectorSearchResult> = vec_hits
             .into_iter()
@@ -95,6 +98,18 @@ impl SearchPipeline {
 
         tracing::debug!(final_count = merged.len(), "search merged and truncated");
         Ok(merged)
+    }
+
+    pub async fn rebuild_index(&self) -> crate::error::Result<()> {
+        let new_index = VectorIndex::build(&self.db).await?;
+        let mut index = self.vector_index.write().await;
+        *index = new_index;
+        tracing::info!("vector index rebuilt");
+        Ok(())
+    }
+
+    pub fn embedding_service(&self) -> &Arc<dyn EmbeddingService> {
+        &self.embedding_service
     }
 }
 
