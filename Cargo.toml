@@ -38,6 +38,7 @@ thiserror = "2"
 
 # Hashing
 sha2 = "0.10"
+subtle = "2"
 
 # Time
 chrono = { version = "0.4", features = ["serde"] }
@@ -78,4 +79,5 @@ dotenvy = "0.15"
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }
 tempfile = "3"
+tower = "0.5"
 wiremock = "0.6"

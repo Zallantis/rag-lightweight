@@ -81,6 +81,19 @@ impl EmbeddingConfig {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct AuthConfig {
+    pub token: Option<String>,
+}
+
+impl AuthConfig {
+    pub fn from_env() -> Self {
+        Self {
+            token: std::env::var("MCP_AUTH_TOKEN").ok().filter(|t| !t.is_empty()),
+        }
+    }
+}
+
 pub struct SearchConfig {
     pub retrieve_limit: usize,
     pub top_k: usize,
@@ -183,6 +196,32 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap().dimension, 0);
         clear_embedding_env();
+    }
+
+    #[test]
+    fn auth_config_returns_none_when_var_not_set() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        unsafe { std::env::remove_var("MCP_AUTH_TOKEN") };
+        let config = AuthConfig::from_env();
+        assert!(config.token.is_none());
+    }
+
+    #[test]
+    fn auth_config_returns_none_when_var_empty() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("MCP_AUTH_TOKEN", "") };
+        let config = AuthConfig::from_env();
+        assert!(config.token.is_none());
+        unsafe { std::env::remove_var("MCP_AUTH_TOKEN") };
+    }
+
+    #[test]
+    fn auth_config_returns_token_when_set() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("MCP_AUTH_TOKEN", "abc123") };
+        let config = AuthConfig::from_env();
+        assert_eq!(config.token, Some("abc123".to_string()));
+        unsafe { std::env::remove_var("MCP_AUTH_TOKEN") };
     }
 
     #[test]

@@ -7,7 +7,8 @@ use rmcp::transport::streamable_http_server::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::config::{EmbeddingConfig, SearchConfig};
+use crate::auth::AuthState;
+use crate::config::{AuthConfig, EmbeddingConfig, SearchConfig};
 use crate::db;
 use crate::embed::http_adapter::HttpEmbeddingService;
 use crate::embed::service::EmbeddingService;
@@ -15,6 +16,13 @@ use crate::mcp::server::RagServer;
 use crate::search::pipeline::SearchPipeline;
 
 pub async fn run(host: String, port: u16, db_path: PathBuf) -> crate::error::Result<()> {
+    let auth_config = AuthConfig::from_env();
+    if auth_config.token.is_some() {
+        tracing::info!("bearer token auth enabled");
+    } else {
+        tracing::warn!("MCP_AUTH_TOKEN not set — endpoints are unprotected");
+    }
+
     let embedding_config = EmbeddingConfig::from_env()?;
     let search_config = SearchConfig::from_env();
     let db_client = db::init(&db_path, embedding_config.dimension).await?;
@@ -53,7 +61,11 @@ pub async fn run(host: String, port: u16, db_path: PathBuf) -> crate::error::Res
 
     let router = axum::Router::new()
         .nest_service("/mcp", service.clone())
-        .nest_service("/http", service);
+        .nest_service("/http", service)
+        .route_layer(axum::middleware::from_fn_with_state(
+            AuthState::new(auth_config.token),
+            crate::auth::require_bearer_token,
+        ));
 
     let addr = format!("{host}:{port}");
     tracing::info!("MCP server starting on {addr}");
