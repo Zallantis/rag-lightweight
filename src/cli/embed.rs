@@ -5,13 +5,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::cli::progress::ProgressBar;
 use crate::config::EmbeddingConfig;
 use crate::db;
-use crate::embed::http_adapter::HttpEmbeddingService;
-use crate::embed::service::EmbeddingService;
+use crate::embed::service::EmbedRole;
 
 pub async fn run(batch_size: usize, force: bool, db_path: PathBuf) -> crate::error::Result<()> {
     let embedding_config = EmbeddingConfig::from_env()?;
     let db = db::init(&db_path, embedding_config.dimension).await?;
-    let embedding_service = HttpEmbeddingService::new(embedding_config.clone());
+    let embedding_service = crate::embed::create_embedding_service(&embedding_config)?;
 
     if force {
         println!("Force mode: clearing all existing vectors...");
@@ -20,7 +19,10 @@ pub async fn run(batch_size: usize, force: bool, db_path: PathBuf) -> crate::err
 
     let chunk_counts = db::chunks::count_chunks(&db).await?;
     if chunk_counts.pending == 0 {
-        println!("Nothing to embed. All {} chunks already have vectors.", chunk_counts.total);
+        println!(
+            "Nothing to embed. All {} chunks already have vectors.",
+            chunk_counts.total
+        );
         db::shutdown(db).await;
         return Ok(());
     }
@@ -58,7 +60,9 @@ pub async fn run(batch_size: usize, force: bool, db_path: PathBuf) -> crate::err
 
         let batch_len = pending.len();
         let texts: Vec<String> = pending.iter().map(|c| c.content.clone()).collect();
-        let vectors = embedding_service.embed(texts).await?;
+        let vectors = embedding_service
+            .embed_with_role(texts, EmbedRole::Passage)
+            .await?;
 
         let updates: Vec<_> = pending
             .iter()

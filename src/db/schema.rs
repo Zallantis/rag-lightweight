@@ -1,8 +1,8 @@
 use crate::db::SurrealClient;
 
 pub async fn apply(db: &SurrealClient, dimension: usize) -> crate::error::Result<()> {
-
-    let schema = format!(r#"
+    let schema = format!(
+        r#"
         DEFINE TABLE IF NOT EXISTS document SCHEMAFULL;
         DEFINE FIELD IF NOT EXISTS source ON document TYPE string;
         DEFINE FIELD IF NOT EXISTS source_id ON document TYPE string;
@@ -41,7 +41,8 @@ pub async fn apply(db: &SurrealClient, dimension: usize) -> crate::error::Result
         DEFINE FIELD IF NOT EXISTS created_at ON child_of TYPE datetime DEFAULT time::now();
         DEFINE INDEX IF NOT EXISTS idx_child_of_in ON child_of FIELDS in UNIQUE;
         DEFINE INDEX IF NOT EXISTS idx_child_of_out ON child_of FIELDS out;
-    "#);
+    "#
+    );
 
     db.query(schema).await?;
     tracing::info!("Database schema applied (dimension={dimension})");

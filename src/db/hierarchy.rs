@@ -212,9 +212,15 @@ mod tests {
     #[tokio::test]
     async fn cycle_detection_prevents_circular_hierarchy() {
         let db = test_db().await;
-        let (a, _) = upsert_document(&db, "test", "a", "A", "c", "h1").await.unwrap();
-        let (b, _) = upsert_document(&db, "test", "b", "B", "c", "h2").await.unwrap();
-        let (c, _) = upsert_document(&db, "test", "c", "C", "c", "h3").await.unwrap();
+        let (a, _) = upsert_document(&db, "test", "a", "A", "c", "h1")
+            .await
+            .unwrap();
+        let (b, _) = upsert_document(&db, "test", "b", "B", "c", "h2")
+            .await
+            .unwrap();
+        let (c, _) = upsert_document(&db, "test", "c", "C", "c", "h3")
+            .await
+            .unwrap();
 
         set_parent(&db, &b, Some(&a)).await.unwrap();
         set_parent(&db, &c, Some(&b)).await.unwrap();
@@ -226,9 +232,15 @@ mod tests {
     #[tokio::test]
     async fn get_ancestors_returns_path_to_root() {
         let db = test_db().await;
-        let (root, _) = upsert_document(&db, "test", "r", "Root", "c", "h1").await.unwrap();
-        let (mid, _) = upsert_document(&db, "test", "m", "Mid", "c", "h2").await.unwrap();
-        let (leaf, _) = upsert_document(&db, "test", "l", "Leaf", "c", "h3").await.unwrap();
+        let (root, _) = upsert_document(&db, "test", "r", "Root", "c", "h1")
+            .await
+            .unwrap();
+        let (mid, _) = upsert_document(&db, "test", "m", "Mid", "c", "h2")
+            .await
+            .unwrap();
+        let (leaf, _) = upsert_document(&db, "test", "l", "Leaf", "c", "h3")
+            .await
+            .unwrap();
 
         set_parent(&db, &mid, Some(&root)).await.unwrap();
         set_parent(&db, &leaf, Some(&mid)).await.unwrap();
@@ -242,10 +254,18 @@ mod tests {
     #[tokio::test]
     async fn get_descendants_returns_full_subtree() {
         let db = test_db().await;
-        let (root, _) = upsert_document(&db, "test", "r", "Root", "c", "h1").await.unwrap();
-        let (c1, _) = upsert_document(&db, "test", "c1", "C1", "c", "h2").await.unwrap();
-        let (c2, _) = upsert_document(&db, "test", "c2", "C2", "c", "h3").await.unwrap();
-        let (gc1, _) = upsert_document(&db, "test", "gc1", "GC1", "c", "h4").await.unwrap();
+        let (root, _) = upsert_document(&db, "test", "r", "Root", "c", "h1")
+            .await
+            .unwrap();
+        let (c1, _) = upsert_document(&db, "test", "c1", "C1", "c", "h2")
+            .await
+            .unwrap();
+        let (c2, _) = upsert_document(&db, "test", "c2", "C2", "c", "h3")
+            .await
+            .unwrap();
+        let (gc1, _) = upsert_document(&db, "test", "gc1", "GC1", "c", "h4")
+            .await
+            .unwrap();
 
         set_parent(&db, &c1, Some(&root)).await.unwrap();
         set_parent(&db, &c2, Some(&root)).await.unwrap();
@@ -258,9 +278,15 @@ mod tests {
     #[tokio::test]
     async fn replacing_parent_updates_hierarchy() {
         let db = test_db().await;
-        let (p1, _) = upsert_document(&db, "test", "p1", "P1", "c", "h1").await.unwrap();
-        let (p2, _) = upsert_document(&db, "test", "p2", "P2", "c", "h2").await.unwrap();
-        let (child, _) = upsert_document(&db, "test", "ch", "Child", "c", "h3").await.unwrap();
+        let (p1, _) = upsert_document(&db, "test", "p1", "P1", "c", "h1")
+            .await
+            .unwrap();
+        let (p2, _) = upsert_document(&db, "test", "p2", "P2", "c", "h2")
+            .await
+            .unwrap();
+        let (child, _) = upsert_document(&db, "test", "ch", "Child", "c", "h3")
+            .await
+            .unwrap();
 
         set_parent(&db, &child, Some(&p1)).await.unwrap();
         set_parent(&db, &child, Some(&p2)).await.unwrap();

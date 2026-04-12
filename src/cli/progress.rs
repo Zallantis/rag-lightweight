@@ -10,7 +10,11 @@ pub struct ProgressBar {
 
 impl ProgressBar {
     pub fn new(total: usize, label: &'static str) -> Self {
-        let pb = Self { total, current: 0, label };
+        let pb = Self {
+            total,
+            current: 0,
+            label,
+        };
         pb.render();
         pb
     }

@@ -5,7 +5,9 @@ use tiktoken_rs::CoreBPE;
 
 fn get_tokenizer() -> &'static CoreBPE {
     static TOKENIZER: OnceLock<CoreBPE> = OnceLock::new();
-    TOKENIZER.get_or_init(|| tiktoken_rs::cl100k_base().expect("cl100k_base tokenizer must be available"))
+    TOKENIZER.get_or_init(|| {
+        tiktoken_rs::cl100k_base().expect("cl100k_base tokenizer must be available")
+    })
 }
 
 pub struct ChunkResult {
@@ -241,7 +243,12 @@ mod tests {
     fn chunk_code_rust_empty_falls_back_to_empty_result() {
         // Empty content: tree-sitter produces no nodes → chunk_text returns nothing →
         // filter removes whitespace-only → result is empty
-        let result = chunk_content("", &FileType::Code(CodeLanguage::Rust), 512, &mut make_parser());
+        let result = chunk_content(
+            "",
+            &FileType::Code(CodeLanguage::Rust),
+            512,
+            &mut make_parser(),
+        );
         assert!(result.is_empty());
     }
 

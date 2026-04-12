@@ -183,18 +183,29 @@ mod tests {
 
     #[test]
     fn detects_markdown() {
-        assert_eq!(detect_file_type(Path::new("README.md")), Some(FileType::Markdown));
-        assert_eq!(detect_file_type(Path::new("doc.mdx")), Some(FileType::Markdown));
+        assert_eq!(
+            detect_file_type(Path::new("README.md")),
+            Some(FileType::Markdown)
+        );
+        assert_eq!(
+            detect_file_type(Path::new("doc.mdx")),
+            Some(FileType::Markdown)
+        );
     }
 
     #[test]
     fn detects_pdf() {
-        assert_eq!(detect_file_type(Path::new("report.pdf")), Some(FileType::Pdf));
+        assert_eq!(
+            detect_file_type(Path::new("report.pdf")),
+            Some(FileType::Pdf)
+        );
     }
 
     #[test]
     fn detects_plain_text_variants() {
-        for ext in &["txt", "toml", "yaml", "yml", "json", "xml", "html", "css", "sql", "sh"] {
+        for ext in &[
+            "txt", "toml", "yaml", "yml", "json", "xml", "html", "css", "sql", "sh",
+        ] {
             let filename = format!("file.{ext}");
             assert_eq!(
                 detect_file_type(Path::new(&filename)),

@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use sha2::{Digest, Sha256};
 use crate::cli::progress::ProgressBar;
 use crate::db;
-use crate::ingest::scanner;
 use crate::ingest::chunker;
+use crate::ingest::scanner;
+use sha2::{Digest, Sha256};
+use std::path::PathBuf;
 
 pub async fn run(
     path: PathBuf,
@@ -16,19 +16,17 @@ pub async fn run(
     let dimension: usize = std::env::var("EMBEDDING_DIMENSION")
         .map_err(|_| crate::error::AppError::Config("EMBEDDING_DIMENSION is required".into()))?
         .parse::<usize>()
-        .map_err(|_| crate::error::AppError::Config("EMBEDDING_DIMENSION must be a number".into()))?;
+        .map_err(|_| {
+            crate::error::AppError::Config("EMBEDDING_DIMENSION must be a number".into())
+        })?;
     let db = db::init(&db_path, dimension).await?;
 
-    let extensions: Option<Vec<String>> = extensions
-        .map(|e| e.split(',').map(|s| s.trim().to_string()).collect());
-    let exclude: Option<Vec<String>> = exclude
-        .map(|e| e.split(',').map(|s| s.trim().to_string()).collect());
+    let extensions: Option<Vec<String>> =
+        extensions.map(|e| e.split(',').map(|s| s.trim().to_string()).collect());
+    let exclude: Option<Vec<String>> =
+        exclude.map(|e| e.split(',').map(|s| s.trim().to_string()).collect());
 
-    let files = scanner::scan_directory(
-        &path,
-        extensions.as_deref(),
-        exclude.as_deref(),
-    );
+    let files = scanner::scan_directory(&path, extensions.as_deref(), exclude.as_deref());
 
     let mut parser = tree_sitter::Parser::new();
     let mut processed = 0usize;
@@ -38,28 +36,24 @@ pub async fn run(
 
     for file in &files {
         let content = match &file.file_type {
-            scanner::FileType::Pdf => {
-                match extract_pdf_text(&file.path) {
-                    Ok(text) => text,
-                    Err(e) => {
-                        tracing::warn!("Failed to extract PDF {}: {}", file.path.display(), e);
-                        skipped += 1;
-                        pb.inc(1);
-                        continue;
-                    }
+            scanner::FileType::Pdf => match extract_pdf_text(&file.path) {
+                Ok(text) => text,
+                Err(e) => {
+                    tracing::warn!("Failed to extract PDF {}: {}", file.path.display(), e);
+                    skipped += 1;
+                    pb.inc(1);
+                    continue;
                 }
-            }
-            _ => {
-                match std::fs::read_to_string(&file.path) {
-                    Ok(content) => content,
-                    Err(e) => {
-                        tracing::warn!("Failed to read {}: {}", file.path.display(), e);
-                        skipped += 1;
-                        pb.inc(1);
-                        continue;
-                    }
+            },
+            _ => match std::fs::read_to_string(&file.path) {
+                Ok(content) => content,
+                Err(e) => {
+                    tracing::warn!("Failed to read {}: {}", file.path.display(), e);
+                    skipped += 1;
+                    pb.inc(1);
+                    continue;
                 }
-            }
+            },
         };
 
         if content.trim().is_empty() {

@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use subtle::ConstantTimeEq;
@@ -11,7 +11,9 @@ pub struct AuthState {
 
 impl AuthState {
     pub fn new(token: Option<String>) -> Self {
-        Self { expected_token: token }
+        Self {
+            expected_token: token,
+        }
     }
 }
 
@@ -44,13 +46,17 @@ pub async fn require_bearer_token(
 }
 
 fn unauthorized() -> Response {
-    (StatusCode::UNAUTHORIZED, [(header::WWW_AUTHENTICATE, "Bearer")]).into_response()
+    (
+        StatusCode::UNAUTHORIZED,
+        [(header::WWW_AUTHENTICATE, "Bearer")],
+    )
+        .into_response()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request, middleware, routing::get, Router};
+    use axum::{Router, body::Body, http::Request, middleware, routing::get};
     use tower::ServiceExt;
 
     fn app(token: Option<&str>) -> Router {

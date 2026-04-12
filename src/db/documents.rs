@@ -79,9 +79,11 @@ pub async fn upsert_document(
         .await?
         .take(0)?;
 
-    let doc = doc.ok_or_else(|| crate::error::AppError::Ingest(
-        format!("UPSERT document returned no record for source_id={source_id}")
-    ))?;
+    let doc = doc.ok_or_else(|| {
+        crate::error::AppError::Ingest(format!(
+            "UPSERT document returned no record for source_id={source_id}"
+        ))
+    })?;
     Ok((doc.id, true))
 }
 
@@ -128,7 +130,10 @@ pub async fn list_documents(
         "SELECT id, source, source_id, title, created_at FROM document{where_clause} ORDER BY created_at DESC LIMIT $limit START $offset"
     );
 
-    let mut q = db.query(sql).bind(("limit", limit)).bind(("offset", offset));
+    let mut q = db
+        .query(sql)
+        .bind(("limit", limit))
+        .bind(("offset", offset));
     if let Some(source) = source {
         q = q.bind(("source", source.to_string()));
     }
@@ -271,8 +276,12 @@ mod tests {
     async fn list_documents_returns_all_when_no_source_filter() {
         let dir = tempdir().unwrap();
         let db = crate::db::init(dir.path(), 384).await.unwrap();
-        upsert_document(&db, "source_a", "f1", "T1", "C1", "h1").await.unwrap();
-        upsert_document(&db, "source_b", "f2", "T2", "C2", "h2").await.unwrap();
+        upsert_document(&db, "source_a", "f1", "T1", "C1", "h1")
+            .await
+            .unwrap();
+        upsert_document(&db, "source_b", "f2", "T2", "C2", "h2")
+            .await
+            .unwrap();
         let docs = list_documents(&db, None, 10, 0, None).await.unwrap();
         assert_eq!(docs.len(), 2);
     }
@@ -281,9 +290,15 @@ mod tests {
     async fn list_documents_filters_by_source() {
         let dir = tempdir().unwrap();
         let db = crate::db::init(dir.path(), 384).await.unwrap();
-        upsert_document(&db, "source_a", "f1", "T1", "C1", "h1").await.unwrap();
-        upsert_document(&db, "source_b", "f2", "T2", "C2", "h2").await.unwrap();
-        let docs = list_documents(&db, Some("source_a"), 10, 0, None).await.unwrap();
+        upsert_document(&db, "source_a", "f1", "T1", "C1", "h1")
+            .await
+            .unwrap();
+        upsert_document(&db, "source_b", "f2", "T2", "C2", "h2")
+            .await
+            .unwrap();
+        let docs = list_documents(&db, Some("source_a"), 10, 0, None)
+            .await
+            .unwrap();
         assert_eq!(docs.len(), 1);
         assert_eq!(docs[0].source, "source_a");
     }

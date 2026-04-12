@@ -1,7 +1,7 @@
+use crate::db::search::{FtsSearchResult, VectorSearchResult};
+use crate::search::pipeline::SearchResult;
 use std::collections::HashMap;
 use surrealdb::types::RecordIdKey;
-use crate::db::search::{VectorSearchResult, FtsSearchResult};
-use crate::search::pipeline::SearchResult;
 
 const RRF_K: f64 = 60.0;
 
@@ -23,12 +23,14 @@ pub fn rrf_merge(
     let mut doc_vector_scores: HashMap<String, VecDocEntry> = HashMap::new();
     for result in &vector_results {
         let doc_id = record_key_to_string(&result.document.key);
-        let entry = doc_vector_scores.entry(doc_id.clone()).or_insert(VecDocEntry {
-            score: 0.0,
-            content: String::new(),
-            source: result.doc_source.clone(),
-            title: result.doc_title.clone(),
-        });
+        let entry = doc_vector_scores
+            .entry(doc_id.clone())
+            .or_insert(VecDocEntry {
+                score: 0.0,
+                content: String::new(),
+                source: result.doc_source.clone(),
+                title: result.doc_title.clone(),
+            });
         if result.score > entry.score {
             entry.score = result.score;
             entry.content = result.content.clone();
@@ -36,7 +38,11 @@ pub fn rrf_merge(
     }
 
     let mut vec_ranked: Vec<_> = doc_vector_scores.into_iter().collect();
-    vec_ranked.sort_by(|a, b| b.1.score.partial_cmp(&a.1.score).unwrap_or(std::cmp::Ordering::Equal));
+    vec_ranked.sort_by(|a, b| {
+        b.1.score
+            .partial_cmp(&a.1.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     for (rank, (doc_id, vec_entry)) in vec_ranked.into_iter().enumerate() {
         let rrf_score = 1.0 / (RRF_K + rank as f64 + 1.0);
@@ -80,7 +86,11 @@ pub fn rrf_merge(
         })
         .collect();
 
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     results
 }
 
@@ -104,7 +114,12 @@ mod tests {
     use super::*;
     use surrealdb::types::RecordId;
 
-    fn make_vec_result(doc_key: &str, chunk_key: &str, score: f64, content: &str) -> VectorSearchResult {
+    fn make_vec_result(
+        doc_key: &str,
+        chunk_key: &str,
+        score: f64,
+        content: &str,
+    ) -> VectorSearchResult {
         VectorSearchResult {
             id: RecordId::new("chunk", chunk_key),
             document: RecordId::new("document", doc_key),
@@ -165,15 +180,23 @@ mod tests {
                 make_vec_result("doc_a", "chunk_1", 0.95, "content a"),
                 make_vec_result("doc_b", "chunk_2", 0.80, "content b"),
             ],
-            vec![
-                make_fts_result("doc_a", 2.0, "content a"),
-            ],
+            vec![make_fts_result("doc_a", 2.0, "content a")],
         );
         assert_eq!(results.len(), 2, "doc_a must not appear twice");
-        assert!(results[0].document_id.contains("doc_a"),
-            "doc_a should rank first due to merged score");
-        let doc_a_score = results.iter().find(|r| r.document_id.contains("doc_a")).unwrap().score;
-        let doc_b_score = results.iter().find(|r| r.document_id.contains("doc_b")).unwrap().score;
+        assert!(
+            results[0].document_id.contains("doc_a"),
+            "doc_a should rank first due to merged score"
+        );
+        let doc_a_score = results
+            .iter()
+            .find(|r| r.document_id.contains("doc_a"))
+            .unwrap()
+            .score;
+        let doc_b_score = results
+            .iter()
+            .find(|r| r.document_id.contains("doc_b"))
+            .unwrap()
+            .score;
         assert!(doc_a_score > doc_b_score);
     }
 
@@ -212,9 +235,13 @@ mod tests {
             vec![],
         );
         for i in 0..results.len() - 1 {
-            assert!(results[i].score >= results[i + 1].score,
+            assert!(
+                results[i].score >= results[i + 1].score,
                 "Results not sorted: index {i} score {} < index {} score {}",
-                results[i].score, i + 1, results[i + 1].score);
+                results[i].score,
+                i + 1,
+                results[i + 1].score
+            );
         }
     }
 }

@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package wzd;
+
+import "wzd/common.proto";
+
+option go_package = "github.com/wzd/protos/wzd";
+
+service EmbedInferenceService {
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc ListModels(Empty) returns (ListModelsResponse);
+  rpc ModelInfo(ModelInfoRequest) returns (EmbedModelInfo);
+}
+
+enum EmbedRole {
+  PASSAGE = 0;
+  QUERY = 1;
+}
+
+message EmbedRequest {
+  string model_id = 1;
+  repeated string texts = 2;
+  EmbedRole role = 3;
+}
+
+message FloatVector {
+  repeated float values = 1;
+}
+
+message EmbedResponse {
+  repeated FloatVector embeddings = 1;
+  uint64 dimension = 2;
+  uint64 total_tokens = 3;
+  uint64 elapsed_ms = 4;
+}
+
+message ListModelsResponse {
+  repeated EmbedModelInfo models = 1;
+}
+
+message ModelInfoRequest {
+  string model_id = 1;
+}
+
+message EmbedModelInfo {
+  string id = 1;
+  string backend = 2;
+  optional uint64 dimension = 3;
+  optional string path = 4;
+  bool loaded = 5;
+}

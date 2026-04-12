@@ -1,12 +1,12 @@
-use std::sync::Arc;
-use serde::Serialize;
-use tokio::sync::RwLock;
 use crate::config::SearchConfig;
 use crate::db::SurrealClient;
 use crate::db::search as db_search;
 use crate::embed::service::EmbeddingService;
 use crate::search::merge;
 use crate::search::vector_index::VectorIndex;
+use serde::Serialize;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct SearchResult {
@@ -49,7 +49,13 @@ impl SearchPipeline {
         let retrieve_limit = self.search_config.retrieve_limit;
 
         tracing::debug!(query, top_k, retrieve_limit, "embedding query");
-        let query_vectors = self.embedding_service.embed(vec![query.to_string()]).await?;
+        let query_vectors = self
+            .embedding_service
+            .embed_with_role(
+                vec![query.to_string()],
+                crate::embed::service::EmbedRole::Query,
+            )
+            .await?;
         let query_vector = query_vectors
             .into_iter()
             .next()
@@ -71,9 +77,8 @@ impl SearchPipeline {
             })
             .collect();
 
-        let fts_results = db_search::fulltext_search(
-            &self.db, query, retrieve_limit, source_filter,
-        ).await?;
+        let fts_results =
+            db_search::fulltext_search(&self.db, query, retrieve_limit, source_filter).await?;
 
         tracing::debug!(
             vector_hits = vec_results.len(),
@@ -85,7 +90,9 @@ impl SearchPipeline {
         merged.truncate(top_k);
 
         for result in &mut merged {
-            if let Ok(Some(doc)) = crate::db::documents::get_document(&self.db, &result.document_id).await {
+            if let Ok(Some(doc)) =
+                crate::db::documents::get_document(&self.db, &result.document_id).await
+            {
                 result.content = doc.content;
                 if result.source.is_none() {
                     result.source = Some(doc.source);
@@ -112,4 +119,3 @@ impl SearchPipeline {
         &self.embedding_service
     }
 }
-

@@ -1,6 +1,6 @@
+use crate::db::SurrealClient;
 use std::collections::HashMap;
 use surrealdb::types::{RecordId, RecordIdKey, SurrealValue};
-use crate::db::SurrealClient;
 
 const MAX_CHUNKS_PER_DOC: usize = 3;
 
@@ -41,7 +41,13 @@ impl VectorIndex {
             .into_iter()
             .map(|d| {
                 let key = record_key_str(&d.id.key);
-                (key, DocInfo { source: d.source, title: d.title })
+                (
+                    key,
+                    DocInfo {
+                        source: d.source,
+                        title: d.title,
+                    },
+                )
             })
             .collect();
 
@@ -73,11 +79,20 @@ impl VectorIndex {
             })
             .collect();
 
-        tracing::info!(vectors = entries.len(), documents = docs.len(), "vector index built");
+        tracing::info!(
+            vectors = entries.len(),
+            documents = docs.len(),
+            "vector index built"
+        );
         Ok(Self { entries, docs })
     }
 
-    pub fn search(&self, query_vector: &[f32], limit: usize, source: Option<&str>) -> Vec<VectorHit> {
+    pub fn search(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+        source: Option<&str>,
+    ) -> Vec<VectorHit> {
         if self.entries.is_empty() {
             return vec![];
         }
@@ -93,7 +108,8 @@ impl VectorIndex {
 
         let mut scored: Vec<(usize, f32)> = if let Some(src) = source {
             iter.filter(|(_, e)| {
-                self.docs.get(&e.doc_key)
+                self.docs
+                    .get(&e.doc_key)
                     .map(|d| d.source == src)
                     .unwrap_or(false)
             })

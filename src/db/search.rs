@@ -1,5 +1,5 @@
-use surrealdb::types::{RecordId, SurrealValue};
 use crate::db::SurrealClient;
+use surrealdb::types::{RecordId, SurrealValue};
 
 #[derive(Debug, Clone)]
 pub struct VectorSearchResult {
@@ -19,7 +19,6 @@ pub struct FtsSearchResult {
     pub content: String,
     pub score: f64,
 }
-
 
 pub async fn fulltext_search(
     db: &SurrealClient,

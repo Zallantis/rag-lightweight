@@ -13,7 +13,10 @@ struct Ctx {
 
 impl Ctx {
     fn new() -> Self {
-        Self { bindings: Vec::new(), counter: 0 }
+        Self {
+            bindings: Vec::new(),
+            counter: 0,
+        }
     }
 
     fn param(&mut self, value: Value) -> String {
@@ -31,7 +34,10 @@ pub fn parse_filters(filters: &Value) -> Result<FilterResult, String> {
     }
     let mut ctx = Ctx::new();
     let clause = parse_object(obj, "", &mut ctx)?;
-    Ok(FilterResult { where_clause: clause, bindings: ctx.bindings })
+    Ok(FilterResult {
+        where_clause: clause,
+        bindings: ctx.bindings,
+    })
 }
 
 fn parse_object(
@@ -251,7 +257,10 @@ mod tests {
                 {"b": 2}
             ]
         }));
-        assert_eq!(c, "(custom_attributes.a = $f0 AND custom_attributes.b = $f1)");
+        assert_eq!(
+            c,
+            "(custom_attributes.a = $f0 AND custom_attributes.b = $f1)"
+        );
     }
 
     #[test]
@@ -262,7 +271,10 @@ mod tests {
                 {"category": "logs"}
             ]
         }));
-        assert_eq!(c, "(custom_attributes.category = $f0 OR custom_attributes.category = $f1)");
+        assert_eq!(
+            c,
+            "(custom_attributes.category = $f0 OR custom_attributes.category = $f1)"
+        );
     }
 
     #[test]
@@ -299,7 +311,10 @@ mod tests {
         }))
         .unwrap();
         assert!(r.where_clause.contains("custom_attributes.version >= $f"));
-        assert!(r.where_clause.contains("custom_attributes.tags CONTAINS $f"));
+        assert!(
+            r.where_clause
+                .contains("custom_attributes.tags CONTAINS $f")
+        );
         assert!(r.where_clause.contains(" AND "));
     }
 

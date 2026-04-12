@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package wzd;
+
+option go_package = "github.com/wzd/protos/wzd";
+
+// Empty message for requests with no parameters
+message Empty {}
+
+// Pagination parameters
+message Pagination {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+// Timestamp wrapper
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}

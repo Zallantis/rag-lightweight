@@ -1,16 +1,14 @@
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService,
-    session::local::LocalSessionManager,
+    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
 use tokio_util::sync::CancellationToken;
 
 use crate::auth::AuthState;
 use crate::config::{AuthConfig, EmbeddingConfig, SearchConfig};
 use crate::db;
-use crate::embed::http_adapter::HttpEmbeddingService;
 use crate::embed::service::EmbeddingService;
 use crate::mcp::server::RagServer;
 use crate::search::pipeline::SearchPipeline;
@@ -28,13 +26,11 @@ pub async fn run(host: String, port: u16, db_path: PathBuf) -> crate::error::Res
     let db_client = db::init(&db_path, embedding_config.dimension).await?;
 
     let embedding_service: Arc<dyn EmbeddingService> =
-        Arc::new(HttpEmbeddingService::new(embedding_config.clone()));
+        crate::embed::create_embedding_service(&embedding_config)?;
 
-    let pipeline = Arc::new(SearchPipeline::new(
-        db_client.clone(),
-        embedding_service.clone(),
-        search_config,
-    ).await?);
+    let pipeline = Arc::new(
+        SearchPipeline::new(db_client.clone(), embedding_service.clone(), search_config).await?,
+    );
 
     let ct = CancellationToken::new();
 
@@ -44,12 +40,14 @@ pub async fn run(host: String, port: u16, db_path: PathBuf) -> crate::error::Res
             let db_client = db_client.clone();
             let embedding_config = embedding_config.clone();
             let embedding_service = embedding_service.clone();
-            move || Ok(RagServer::new(
-                pipeline.clone(),
-                db_client.clone(),
-                embedding_config.clone(),
-                embedding_service.clone(),
-            ))
+            move || {
+                Ok(RagServer::new(
+                    pipeline.clone(),
+                    db_client.clone(),
+                    embedding_config.clone(),
+                    embedding_service.clone(),
+                ))
+            }
         },
         Arc::new(LocalSessionManager::default()),
         StreamableHttpServerConfig {

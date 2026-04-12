@@ -1,6 +1,6 @@
-use std::path::PathBuf;
 use crate::config::EmbeddingConfig;
 use crate::db;
+use std::path::PathBuf;
 
 pub async fn run(db_path: PathBuf) -> crate::error::Result<()> {
     let embed_cfg = EmbeddingConfig::from_env().ok();

@@ -27,7 +27,8 @@ pub struct ListDocumentsInput {
     pub limit: Option<usize>,
     #[schemars(description = "Offset for pagination")]
     pub offset: Option<usize>,
-    #[schemars(description = "Filter documents by custom_attributes using a JSON DSL.\n\n\
+    #[schemars(
+        description = "Filter documents by custom_attributes using a JSON DSL.\n\n\
 OPERATORS (applied to a field value):\n\
 - Exact match: {\"field\": \"value\"} or {\"field\": {\"$eq\": \"value\"}}\n\
 - Comparison: $ne (!=), $gt (>), $gte (>=), $lt (<), $lte (<=)\n\
@@ -49,7 +50,8 @@ EXAMPLES:\n\
 - Multiple conditions: {\"category\": \"docs\", \"version\": {\"$gte\": 2}}\n\
 - OR: {\"$or\": [{\"priority\": \"high\"}, {\"priority\": \"critical\"}]}\n\
 - Array intersection: {\"tags\": {\"$any\": [\"api\", \"graphql\"]}}\n\
-- Nested path + operator: {\"metadata\": {\"source\": {\"$ne\": \"deprecated\"}}}")]
+- Nested path + operator: {\"metadata\": {\"source\": {\"$ne\": \"deprecated\"}}}"
+    )]
     pub filters: Option<serde_json::Value>,
 }
 
@@ -74,7 +76,9 @@ pub struct CreateDocumentInput {
     pub source: Option<String>,
     #[schemars(description = "Unique identifier within the source (auto-generated if omitted)")]
     pub source_id: Option<String>,
-    #[schemars(description = "Content type hint: 'markdown', 'plain_text', 'rust', 'typescript', 'python', 'go', 'ruby', 'java', 'javascript', 'c', 'cpp', 'csharp'. Auto-detected if omitted.")]
+    #[schemars(
+        description = "Content type hint: 'markdown', 'plain_text', 'rust', 'typescript', 'python', 'go', 'ruby', 'java', 'javascript', 'c', 'cpp', 'csharp'. Auto-detected if omitted."
+    )]
     pub content_type: Option<String>,
     #[schemars(description = "Parent document ID for hierarchy (without 'document:' prefix)")]
     pub parent_id: Option<String>,
@@ -109,7 +113,9 @@ pub struct MutationResult {
 pub struct SetDocumentParentInput {
     #[schemars(description = "Child document ID (without 'document:' prefix)")]
     pub child_id: String,
-    #[schemars(description = "Parent document ID (without 'document:' prefix). Omit to make root.")]
+    #[schemars(
+        description = "Parent document ID (without 'document:' prefix). Omit to make root."
+    )]
     pub parent_id: Option<String>,
 }
 
@@ -154,28 +160,49 @@ mod tests {
 
     #[test]
     fn parse_explicit_markdown() {
-        assert!(matches!(parse_content_type(Some("markdown"), ""), FileType::Markdown));
-        assert!(matches!(parse_content_type(Some("md"), ""), FileType::Markdown));
+        assert!(matches!(
+            parse_content_type(Some("markdown"), ""),
+            FileType::Markdown
+        ));
+        assert!(matches!(
+            parse_content_type(Some("md"), ""),
+            FileType::Markdown
+        ));
     }
 
     #[test]
     fn parse_explicit_code() {
-        assert!(matches!(parse_content_type(Some("rust"), ""), FileType::Code(CodeLanguage::Rust)));
-        assert!(matches!(parse_content_type(Some("python"), ""), FileType::Code(CodeLanguage::Python)));
+        assert!(matches!(
+            parse_content_type(Some("rust"), ""),
+            FileType::Code(CodeLanguage::Rust)
+        ));
+        assert!(matches!(
+            parse_content_type(Some("python"), ""),
+            FileType::Code(CodeLanguage::Python)
+        ));
     }
 
     #[test]
     fn auto_detect_markdown_heading() {
-        assert!(matches!(parse_content_type(None, "# Title\nContent"), FileType::Markdown));
+        assert!(matches!(
+            parse_content_type(None, "# Title\nContent"),
+            FileType::Markdown
+        ));
     }
 
     #[test]
     fn auto_detect_markdown_code_block() {
-        assert!(matches!(parse_content_type(None, "text\n```rust\ncode\n```"), FileType::Markdown));
+        assert!(matches!(
+            parse_content_type(None, "text\n```rust\ncode\n```"),
+            FileType::Markdown
+        ));
     }
 
     #[test]
     fn auto_detect_plain_text() {
-        assert!(matches!(parse_content_type(None, "Just some plain text."), FileType::PlainText));
+        assert!(matches!(
+            parse_content_type(None, "Just some plain text."),
+            FileType::PlainText
+        ));
     }
 }

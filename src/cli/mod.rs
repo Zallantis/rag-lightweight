@@ -1,5 +1,5 @@
-pub mod serve;
-pub mod ingest;
 pub mod embed;
-pub mod status;
+pub mod ingest;
 pub mod progress;
+pub mod serve;
+pub mod status;

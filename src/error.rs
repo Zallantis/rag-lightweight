@@ -17,6 +17,9 @@ pub enum AppError {
     #[error("Embedding error: {0}")]
     Embedding(String),
 
+    #[error("gRPC error: {0}")]
+    Grpc(String),
+
     #[error("Config error: {0}")]
     Config(String),
 

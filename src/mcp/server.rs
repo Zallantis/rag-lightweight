@@ -15,9 +15,8 @@ use crate::embed::service::EmbeddingService;
 use crate::search::pipeline::SearchPipeline;
 
 use super::tools::{
-    ContextSearchInput, CreateDocumentInput, DocumentIdInput, GetDocumentInput,
-    ListDocumentsInput, MutationResult, SetDocumentParentInput, StatsOutput,
-    UpdateDocumentInput, parse_content_type,
+    ContextSearchInput, CreateDocumentInput, DocumentIdInput, GetDocumentInput, ListDocumentsInput,
+    MutationResult, SetDocumentParentInput, StatsOutput, UpdateDocumentInput, parse_content_type,
 };
 
 const DEFAULT_MAX_TOKENS: usize = 512;
@@ -60,7 +59,10 @@ impl RagServer {
         }
 
         let texts: Vec<String> = pending.iter().map(|c| c.content.clone()).collect();
-        let vectors = self.embedding_service.embed(texts).await?;
+        let vectors = self
+            .embedding_service
+            .embed_with_role(texts, crate::embed::service::EmbedRole::Passage)
+            .await?;
 
         let updates: Vec<(RecordId, Vec<f32>)> = pending
             .iter()
@@ -104,11 +106,10 @@ fn generate_source_id(title: &str) -> String {
 
 #[tool_router]
 impl RagServer {
-    #[tool(description = "Search the knowledge base using semantic + full-text hybrid search. Returns ranked results with document context.")]
-    async fn context_search(
-        &self,
-        Parameters(input): Parameters<ContextSearchInput>,
-    ) -> String {
+    #[tool(
+        description = "Search the knowledge base using semantic + full-text hybrid search. Returns ranked results with document context."
+    )]
+    async fn context_search(&self, Parameters(input): Parameters<ContextSearchInput>) -> String {
         if input.query.is_empty() || input.query.len() > 8192 {
             return error_json("query must be between 1 and 8192 characters");
         }
@@ -118,7 +119,11 @@ impl RagServer {
         let limit = input.limit.unwrap_or(5).min(50);
         let source = input.source.as_deref();
         tracing::info!(query = %input.query, limit, source = ?source, "context_search");
-        match self.pipeline.search(&input.query, Some(limit), source).await {
+        match self
+            .pipeline
+            .search(&input.query, Some(limit), source)
+            .await
+        {
             Ok(results) => {
                 tracing::debug!(count = results.len(), "context_search complete");
                 serde_json::to_string(&results).unwrap_or_else(|e| {
@@ -158,11 +163,10 @@ impl RagServer {
         }
     }
 
-    #[tool(description = "List documents with optional filtering by source and custom_attributes. Supports pagination via limit and offset. Use filters for custom_attributes DSL: operators $eq, $ne, $gt, $gte, $lt, $lte, $in, $contains, $any, $all; logical $and, $or; nested paths.")]
-    async fn list_documents(
-        &self,
-        Parameters(input): Parameters<ListDocumentsInput>,
-    ) -> String {
+    #[tool(
+        description = "List documents with optional filtering by source and custom_attributes. Supports pagination via limit and offset. Use filters for custom_attributes DSL: operators $eq, $ne, $gt, $gte, $lt, $lte, $in, $contains, $any, $all; logical $and, $or; nested paths."
+    )]
+    async fn list_documents(&self, Parameters(input): Parameters<ListDocumentsInput>) -> String {
         if input.source.as_deref().map(|s| s.len()).unwrap_or(0) > 256 {
             return error_json("source filter must be 256 characters or fewer");
         }
@@ -179,7 +183,9 @@ impl RagServer {
         };
 
         tracing::info!(limit, offset, source = ?source, has_filters = filter.is_some(), "list_documents");
-        match crate::db::documents::list_documents(&self.db, source, limit, offset, filter.as_ref()).await {
+        match crate::db::documents::list_documents(&self.db, source, limit, offset, filter.as_ref())
+            .await
+        {
             Ok(docs) => {
                 tracing::debug!(count = docs.len(), "list_documents complete");
                 serde_json::to_string(&docs).unwrap_or_else(|e| {
@@ -194,17 +200,19 @@ impl RagServer {
         }
     }
 
-    #[tool(description = "Get statistics about the knowledge base including document counts, chunk counts, and embedding status.")]
+    #[tool(
+        description = "Get statistics about the knowledge base including document counts, chunk counts, and embedding status."
+    )]
     async fn stats(&self) -> String {
         tracing::info!("stats");
-        let (documents, chunk_counts, by_source) =
-            match crate::db::stats::get_stats(&self.db).await {
-                Ok(v) => v,
-                Err(e) => {
-                    tracing::error!(tool = "stats", error = %e, "get_stats failed");
-                    return error_json("failed to query stats");
-                }
-            };
+        let (documents, chunk_counts, by_source) = match crate::db::stats::get_stats(&self.db).await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(tool = "stats", error = %e, "get_stats failed");
+                return error_json("failed to query stats");
+            }
+        };
         let output = StatsOutput {
             documents,
             chunks: chunk_counts.total,
@@ -227,11 +235,10 @@ impl RagServer {
         })
     }
 
-    #[tool(description = "Create a new document in the knowledge base. Content is immediately chunked, embedded, and indexed for search.")]
-    async fn create_document(
-        &self,
-        Parameters(input): Parameters<CreateDocumentInput>,
-    ) -> String {
+    #[tool(
+        description = "Create a new document in the knowledge base. Content is immediately chunked, embedded, and indexed for search."
+    )]
+    async fn create_document(&self, Parameters(input): Parameters<CreateDocumentInput>) -> String {
         if input.title.is_empty() || input.title.len() > 1024 {
             return error_json("title must be between 1 and 1024 characters");
         }
@@ -240,11 +247,18 @@ impl RagServer {
         }
 
         let source = input.source.unwrap_or_else(|| "mcp".to_string());
-        let source_id = input.source_id.unwrap_or_else(|| generate_source_id(&input.title));
+        let source_id = input
+            .source_id
+            .unwrap_or_else(|| generate_source_id(&input.title));
         let hash = content_hash(&input.content);
 
         let (doc_id, _) = match crate::db::documents::upsert_document(
-            &self.db, &source, &source_id, &input.title, &input.content, &hash,
+            &self.db,
+            &source,
+            &source_id,
+            &input.title,
+            &input.content,
+            &hash,
         )
         .await
         {
@@ -266,18 +280,29 @@ impl RagServer {
 
         let file_type = parse_content_type(input.content_type.as_deref(), &input.content);
         let mut parser = tree_sitter::Parser::new();
-        let chunks =
-            crate::ingest::chunker::chunk_content(&input.content, &file_type, DEFAULT_MAX_TOKENS, &mut parser);
+        let chunks = crate::ingest::chunker::chunk_content(
+            &input.content,
+            &file_type,
+            DEFAULT_MAX_TOKENS,
+            &mut parser,
+        );
 
         let chunk_data: Vec<(String, usize, Option<String>)> = chunks
             .iter()
-            .map(|c| (c.content.clone(), c.token_count, Some(c.content_hash.clone())))
+            .map(|c| {
+                (
+                    c.content.clone(),
+                    c.token_count,
+                    Some(c.content_hash.clone()),
+                )
+            })
             .collect();
 
-        let chunks_created = match crate::db::chunks::replace_chunks(&self.db, &doc_id, chunk_data).await {
-            Ok(n) => n,
-            Err(e) => return error_json(&e.to_string()),
-        };
+        let chunks_created =
+            match crate::db::chunks::replace_chunks(&self.db, &doc_id, chunk_data).await {
+                Ok(n) => n,
+                Err(e) => return error_json(&e.to_string()),
+            };
 
         let chunks_embedded = match self.embed_document_chunks(&doc_id).await {
             Ok(n) => n,
@@ -295,7 +320,9 @@ impl RagServer {
 
         if let Some(parent_id_str) = &input.parent_id {
             let parent_rid = RecordId::new("document", parent_id_str.as_str());
-            if let Err(e) = crate::db::hierarchy::set_parent(&self.db, &doc_id, Some(&parent_rid)).await {
+            if let Err(e) =
+                crate::db::hierarchy::set_parent(&self.db, &doc_id, Some(&parent_rid)).await
+            {
                 tracing::warn!(error = %e, "failed to set parent");
             }
         }
@@ -317,11 +344,10 @@ impl RagServer {
         serde_json::to_string(&result).unwrap_or_else(|e| error_json(&e.to_string()))
     }
 
-    #[tool(description = "Update an existing document. When content changes, the document is re-chunked, re-embedded, and the search index is updated.")]
-    async fn update_document(
-        &self,
-        Parameters(input): Parameters<UpdateDocumentInput>,
-    ) -> String {
+    #[tool(
+        description = "Update an existing document. When content changes, the document is re-chunked, re-embedded, and the search index is updated."
+    )]
+    async fn update_document(&self, Parameters(input): Parameters<UpdateDocumentInput>) -> String {
         if input.id.is_empty() || input.id.len() > 256 {
             return error_json("id must be between 1 and 256 characters");
         }
@@ -366,13 +392,20 @@ impl RagServer {
 
             let chunk_data: Vec<(String, usize, Option<String>)> = chunks
                 .iter()
-                .map(|c| (c.content.clone(), c.token_count, Some(c.content_hash.clone())))
+                .map(|c| {
+                    (
+                        c.content.clone(),
+                        c.token_count,
+                        Some(c.content_hash.clone()),
+                    )
+                })
                 .collect();
 
-            chunks_created = match crate::db::chunks::replace_chunks(&self.db, &doc_id, chunk_data).await {
-                Ok(n) => n,
-                Err(e) => return error_json(&e.to_string()),
-            };
+            chunks_created =
+                match crate::db::chunks::replace_chunks(&self.db, &doc_id, chunk_data).await {
+                    Ok(n) => n,
+                    Err(e) => return error_json(&e.to_string()),
+                };
 
             chunks_embedded = match self.embed_document_chunks(&doc_id).await {
                 Ok(n) => n,
@@ -434,7 +467,9 @@ impl RagServer {
         serde_json::to_string(&result).unwrap_or_else(|e| error_json(&e.to_string()))
     }
 
-    #[tool(description = "Set or remove the parent of a document in the hierarchy. Omit parent_id to make the document a root.")]
+    #[tool(
+        description = "Set or remove the parent of a document in the hierarchy. Omit parent_id to make the document a root."
+    )]
     async fn set_document_parent(
         &self,
         Parameters(input): Parameters<SetDocumentParentInput>,
@@ -458,17 +493,18 @@ impl RagServer {
         }
     }
 
-    #[tool(description = "Get the parent document of the given document. Returns null if it is a root document.")]
-    async fn get_document_parent(
-        &self,
-        Parameters(input): Parameters<DocumentIdInput>,
-    ) -> String {
+    #[tool(
+        description = "Get the parent document of the given document. Returns null if it is a root document."
+    )]
+    async fn get_document_parent(&self, Parameters(input): Parameters<DocumentIdInput>) -> String {
         if input.id.is_empty() || input.id.len() > 256 {
             return error_json("id must be between 1 and 256 characters");
         }
         let rid = RecordId::new("document", input.id.as_str());
         match crate::db::hierarchy::get_parent(&self.db, &rid).await {
-            Ok(parent) => serde_json::to_string(&parent).unwrap_or_else(|e| error_json(&e.to_string())),
+            Ok(parent) => {
+                serde_json::to_string(&parent).unwrap_or_else(|e| error_json(&e.to_string()))
+            }
             Err(e) => error_json(&e.to_string()),
         }
     }
@@ -483,7 +519,9 @@ impl RagServer {
         }
         let rid = RecordId::new("document", input.id.as_str());
         match crate::db::hierarchy::get_children(&self.db, &rid).await {
-            Ok(children) => serde_json::to_string(&children).unwrap_or_else(|e| error_json(&e.to_string())),
+            Ok(children) => {
+                serde_json::to_string(&children).unwrap_or_else(|e| error_json(&e.to_string()))
+            }
             Err(e) => error_json(&e.to_string()),
         }
     }
@@ -498,7 +536,9 @@ impl RagServer {
         }
         let rid = RecordId::new("document", input.id.as_str());
         match crate::db::hierarchy::get_ancestors(&self.db, &rid).await {
-            Ok(ancestors) => serde_json::to_string(&ancestors).unwrap_or_else(|e| error_json(&e.to_string())),
+            Ok(ancestors) => {
+                serde_json::to_string(&ancestors).unwrap_or_else(|e| error_json(&e.to_string()))
+            }
             Err(e) => error_json(&e.to_string()),
         }
     }

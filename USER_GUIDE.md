@@ -181,14 +181,15 @@ Create `.env` in the working directory or export in shell.
 
 | Variable | Example | Description |
 |----------|---------|-------------|
-| `EMBEDDING_API_URL` | `http://localhost:11434/v1/embeddings` | Embedding API endpoint |
 | `EMBEDDING_MODEL` | `nomic-embed-text` | Model name |
 | `EMBEDDING_DIMENSION` | `768` | Vector dimension |
+| `EMBEDDING_API_URL` | `http://localhost:11434/v1/embeddings` | Embedding API endpoint (required when `EMBEDDING_PROVIDER=http`) |
 
 #### Optional
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `EMBEDDING_PROVIDER` | `http` | Embedding backend: `http` or `grpc` |
 | `DB_PATH` | `./data/surreal` | Database directory |
 | `HOST` | `127.0.0.1` | Server listen address |
 | `PORT` | `3100` | MCP server port |
@@ -198,6 +199,9 @@ Create `.env` in the working directory or export in shell.
 | `SEARCH_TOP_K` | `5` | Final results returned |
 | `EMBEDDING_API_KEY` | — | API key for paid services (OpenAI). Not needed for Ollama |
 | `EMBEDDING_BATCH_SIZE` | `64` | Texts per API call |
+| `INFERENCE_SERVICE_URL` | `http://localhost:50060` | gRPC endpoint (when `EMBEDDING_PROVIDER=grpc`) |
+| `INFERENCE_SERVICE_AUTH_TOKEN` | — | Bearer token for wzd-inference-service RPCs |
+| `INFERENCE_SERVICE_CA_CERT` | — | Path to PEM CA certificate for TLS connections to wzd-inference-service |
 
 ### Example Configurations
 
@@ -233,6 +237,32 @@ EMBEDDING_API_URL=http://localhost:8080/v1/embeddings
 EMBEDDING_MODEL=BAAI/bge-large-en-v1.5
 EMBEDDING_DIMENSION=1024
 ```
+
+#### wzd-inference-service (gRPC)
+
+```env
+EMBEDDING_PROVIDER=grpc
+EMBEDDING_MODEL=bge-m3
+EMBEDDING_DIMENSION=1024
+INFERENCE_SERVICE_URL=http://localhost:50060
+INFERENCE_SERVICE_AUTH_TOKEN=your-embed-token
+```
+
+With TLS:
+
+```env
+EMBEDDING_PROVIDER=grpc
+EMBEDDING_MODEL=bge-m3
+EMBEDDING_DIMENSION=1024
+INFERENCE_SERVICE_URL=https://gpu-host:50060
+INFERENCE_SERVICE_AUTH_TOKEN=your-embed-token
+INFERENCE_SERVICE_CA_CERT=/path/to/ca.pem
+```
+
+The wzd-inference-service uses gRPC and supports role-based embedding (passage vs query prefixes are applied automatically). Optional settings:
+
+- `INFERENCE_SERVICE_AUTH_TOKEN` — Bearer token for inference service RPCs
+- `INFERENCE_SERVICE_CA_CERT` — path to PEM CA certificate for TLS connections to wzd-inference-service
 
 ---
 

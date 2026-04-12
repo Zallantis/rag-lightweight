@@ -133,7 +133,9 @@ mod tests {
     #[tokio::test]
     async fn replace_chunks_stores_all_chunks() {
         let db = test_db().await;
-        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h").await.unwrap();
+        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h")
+            .await
+            .unwrap();
 
         let chunks = vec![
             ("chunk one".to_string(), 2usize, Some("hash1".to_string())),
@@ -146,11 +148,19 @@ mod tests {
     #[tokio::test]
     async fn get_pending_chunks_returns_all_unembedded() {
         let db = test_db().await;
-        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h").await.unwrap();
-        replace_chunks(&db, &doc_id, vec![
-            ("chunk one".to_string(), 2, Some("h1".to_string())),
-            ("chunk two".to_string(), 3, Some("h2".to_string())),
-        ]).await.unwrap();
+        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h")
+            .await
+            .unwrap();
+        replace_chunks(
+            &db,
+            &doc_id,
+            vec![
+                ("chunk one".to_string(), 2, Some("h1".to_string())),
+                ("chunk two".to_string(), 3, Some("h2".to_string())),
+            ],
+        )
+        .await
+        .unwrap();
 
         let pending = get_pending_chunks(&db, 100).await.unwrap();
         assert_eq!(pending.len(), 2);
@@ -159,11 +169,19 @@ mod tests {
     #[tokio::test]
     async fn bulk_update_removes_chunks_from_pending() {
         let db = test_db().await;
-        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h").await.unwrap();
-        replace_chunks(&db, &doc_id, vec![
-            ("chunk one".to_string(), 2, Some("h1".to_string())),
-            ("chunk two".to_string(), 3, Some("h2".to_string())),
-        ]).await.unwrap();
+        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h")
+            .await
+            .unwrap();
+        replace_chunks(
+            &db,
+            &doc_id,
+            vec![
+                ("chunk one".to_string(), 2, Some("h1".to_string())),
+                ("chunk two".to_string(), 3, Some("h2".to_string())),
+            ],
+        )
+        .await
+        .unwrap();
 
         let pending_before = get_pending_chunks(&db, 100).await.unwrap();
         assert_eq!(pending_before.len(), 2);
@@ -181,15 +199,25 @@ mod tests {
     #[tokio::test]
     async fn count_chunks_reflects_embedded_and_pending() {
         let db = test_db().await;
-        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h").await.unwrap();
-        replace_chunks(&db, &doc_id, vec![
-            ("chunk one".to_string(), 2, None),
-            ("chunk two".to_string(), 3, None),
-        ]).await.unwrap();
+        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h")
+            .await
+            .unwrap();
+        replace_chunks(
+            &db,
+            &doc_id,
+            vec![
+                ("chunk one".to_string(), 2, None),
+                ("chunk two".to_string(), 3, None),
+            ],
+        )
+        .await
+        .unwrap();
 
         let pending = get_pending_chunks(&db, 100).await.unwrap();
         let first_id = pending[0].id.clone();
-        bulk_update_chunk_vectors(&db, vec![(first_id, vec![1.0f32, 0.0, 0.0])]).await.unwrap();
+        bulk_update_chunk_vectors(&db, vec![(first_id, vec![1.0f32, 0.0, 0.0])])
+            .await
+            .unwrap();
 
         let counts = count_chunks(&db).await.unwrap();
         assert_eq!(counts.total, 2);
@@ -200,15 +228,23 @@ mod tests {
     #[tokio::test]
     async fn replace_chunks_deletes_previous_chunks() {
         let db = test_db().await;
-        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h").await.unwrap();
-        replace_chunks(&db, &doc_id, vec![
-            ("old chunk".to_string(), 2, None),
-            ("old chunk 2".to_string(), 3, None),
-        ]).await.unwrap();
+        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h")
+            .await
+            .unwrap();
+        replace_chunks(
+            &db,
+            &doc_id,
+            vec![
+                ("old chunk".to_string(), 2, None),
+                ("old chunk 2".to_string(), 3, None),
+            ],
+        )
+        .await
+        .unwrap();
 
-        replace_chunks(&db, &doc_id, vec![
-            ("new chunk".to_string(), 4, None),
-        ]).await.unwrap();
+        replace_chunks(&db, &doc_id, vec![("new chunk".to_string(), 4, None)])
+            .await
+            .unwrap();
 
         let counts = count_chunks(&db).await.unwrap();
         assert_eq!(counts.total, 1);
@@ -217,12 +253,20 @@ mod tests {
     #[tokio::test]
     async fn get_pending_chunks_respects_limit() {
         let db = test_db().await;
-        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h").await.unwrap();
-        replace_chunks(&db, &doc_id, vec![
-            ("c1".to_string(), 1, None),
-            ("c2".to_string(), 1, None),
-            ("c3".to_string(), 1, None),
-        ]).await.unwrap();
+        let (doc_id, _) = upsert_document(&db, "local", "f1", "T", "C", "h")
+            .await
+            .unwrap();
+        replace_chunks(
+            &db,
+            &doc_id,
+            vec![
+                ("c1".to_string(), 1, None),
+                ("c2".to_string(), 1, None),
+                ("c3".to_string(), 1, None),
+            ],
+        )
+        .await
+        .unwrap();
 
         let pending = get_pending_chunks(&db, 2).await.unwrap();
         assert_eq!(pending.len(), 2);

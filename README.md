@@ -11,7 +11,7 @@ Rust codebase.
 - chunks documents and stores vectors in SurrealDB
 - supports hybrid retrieval with vector search and BM25
 - exposes search tools over MCP in `serve` mode
-- works with OpenAI-compatible embedding APIs, including Ollama
+- works with OpenAI-compatible embedding APIs (Ollama, OpenAI, vLLM) and wzd-inference-service gRPC
 
 ## Commands
 

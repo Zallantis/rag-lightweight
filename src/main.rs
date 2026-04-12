@@ -19,7 +19,13 @@ async fn main() -> anyhow::Result<()> {
         Command::Serve { host, port } => {
             cli::serve::run(host, port, cli.db_path).await?;
         }
-        Command::Ingest { path, extensions, exclude, source, max_tokens } => {
+        Command::Ingest {
+            path,
+            extensions,
+            exclude,
+            source,
+            max_tokens,
+        } => {
             cli::ingest::run(path, extensions, exclude, source, max_tokens, cli.db_path).await?;
         }
         Command::Embed { batch_size, force } => {

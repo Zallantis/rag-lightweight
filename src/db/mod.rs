@@ -1,10 +1,10 @@
-pub mod schema;
-pub mod documents;
 pub mod chunks;
+pub mod documents;
+pub mod filter;
+pub mod hierarchy;
+pub mod schema;
 pub mod search;
 pub mod stats;
-pub mod hierarchy;
-pub mod filter;
 
 use std::path::Path;
 use surrealdb::Surreal;
